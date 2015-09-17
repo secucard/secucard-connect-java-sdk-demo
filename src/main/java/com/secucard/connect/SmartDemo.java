@@ -21,15 +21,18 @@ import com.secucard.connect.auth.model.OAuthCredentials;
 import com.secucard.connect.client.*;
 import com.secucard.connect.event.EventListener;
 import com.secucard.connect.event.Events;
+import com.secucard.connect.product.common.model.MediaResource;
 import com.secucard.connect.product.common.model.QueryParams;
 import com.secucard.connect.product.general.model.Notification;
-import com.secucard.connect.product.smart.CheckinService;
 import com.secucard.connect.product.smart.Smart;
 import com.secucard.connect.product.smart.TransactionService;
 import com.secucard.connect.product.smart.model.*;
 
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Currency;
 import java.util.List;
 
 public class SmartDemo {
@@ -42,7 +45,7 @@ public class SmartDemo {
     final SecucardConnect.Configuration cfg = SecucardConnect.Configuration.get();
 
     // Create your com.secucard.connect.auth.ClientAuthDetails implementation by extending the provided abstract class
-    // which stores tokens to the local disk in default folder ".smartdemostore" in the current working directory.
+    // which stores your obtained OAuth tokens to the local disk in default folder ".smartdemostore" in the current working directory.
     // You may also provide your own implementation which saves to database etc. and maybe gets the credentials from
     // custom properties in the configuration.
     AbstractClientAuthDetails authDetails = new AbstractClientAuthDetails(".smartdemostore") {
@@ -142,28 +145,44 @@ public class SmartDemo {
 
     // Now the API client is ready!
 
-    // Checkins ------------------------------------------------------------------------------------------------
+    // Check-In ------------------------------------------------------------------------------------------------
 
-    CheckinService service = client.smart.checkins;
-    // Alternatively use: CheckinService service = client.service(Smart.Checkins);
-
-    // Set up callback to get notified when a check in event was processed.
-    service.onCheckinsChanged(new Callback<List<Checkin>>() {
+    // Set up callback to get notified when "Check-In" events happen (customer shows up in store).
+    // We just print here for demo purposes, you would probably store in global list or so in real world.
+    // You may trigger such an event by using the secucard app.
+    client.smart.checkins.onCheckinsChanged(new Callback<List<Checkin>>() {
       @Override
       public void completed(List<Checkin> result) {
-        // At this point  all pictures are downloaded.
-        // Access binary content to create a image like:
-        InputStream is = result.get(0).getPictureObject().getInputStream();
+        for (Checkin checkin : result) {
+          System.out.println("Checked in: " + checkin.getCustomerName());
+          // Keep the checkin object id for setting as ident value.
+          // At this point all pictures are also downloaded, access binary content to create a image via:
+          MediaResource picture = checkin.getPictureObject();
+          if (picture != null) {
+            InputStream inputStream = picture.getInputStream();
+            // further stream processing ...
+          } else {
+            // You may additionally check if there was an error which caused the picture to be null and handle somehow.
+            Exception error = checkin.getError();
+          }
+        }
       }
 
       @Override
       public void failed(Throwable cause) {
-        // Error happened, handle appropriate, no need to disconnect client here.
+        // Something bad happened, you would probably want to show an error dialog and clear the checkin list.
+        System.err.println("Error processing check-in:");
+        cause.printStackTrace();
       }
     });
 
 
     // Smart Transaction  ----------------------------------------------------------------------------------------
+    // A transaction purpose is to charge a basket of products (of a shop etc.) against an ident.
+    // The ident is the reference to a medium of exchange belonging to a customer known to the secucard system.
+    // The secucard system supports a number of ident types like cards for instance.
+    // So basically all you have to do is get the ident from the customer (by scanning the card or by using the Check-In
+    // Feature), sample the product basket and submit the basket along with the ident.
 
     TransactionService transactions = client.service(Smart.Transactions);
 
@@ -182,31 +201,49 @@ public class SmartDemo {
 
     try {
 
-      // Select an ident.
-      List<Ident> availableIdents = client.smart.idents.getSimpleList(new QueryParams());
-      if (availableIdents == null) {
-        throw new RuntimeException("No idents found.");
+      // You may obtain a global list of allowed "idents templates" to cross check if current customers ident
+      // is valid at all, this "manual" pre-validation avoids errors when actually submitting transactions later.
+      List<Ident> allowedIdents = client.smart.idents.getSimpleList(new QueryParams());
+      if (allowedIdents == null) {
+        throw new RuntimeException("No idents found."); // Should not happen.
       }
 
-      Ident ident = Ident.find("smi_1", availableIdents);
-      ident.setValue("pdo28hdal");
+      // Select an ident (card) which will be charged for the basket.
+      // Usually the value is the id of a scanned card or the id of a Checkin object taken from the global Check-In list.
+      Ident ident = new Ident();
+      ident.setValue("my-ident-id");
 
-      Basket basket = new Basket();
-      basket.addProduct(
-          new Product(1, null, "3378", "5060215249804", "desc1", "1", 1, 20, Arrays.asList(new ProductGroup("group1", "beverages", 1)))
-      );
-      BasketInfo basketInfo = new BasketInfo(1, "EUR");
+      // Now you can proceed in two ways:
+      // - creating a "empty" transaction first and adding products afterwards by updating this transaction step by step
+      // - adding products to the basket first and creating a new transactions afterwards with the complete basket.
+      // The second approach may be faster but you get product errors late and all at once while the first approach shows
+      // possible errors immediately after each update.
 
-      Transaction newTrans = new Transaction(basketInfo, basket, Arrays.asList(ident));
 
-      Transaction trans = transactions.create(newTrans, null);
+      // We show the first way: create a empty product basket and the basket summary and create a new transaction first.
+      Transaction newTrans = new Transaction();
+      newTrans.setIdents(Collections.singletonList(ident));
+      Transaction trans = transactions.create(newTrans);
       assert (trans.getStatus().equals(Transaction.STATUS_CREATED));
 
+      Basket basket = new Basket();
+      BasketInfo basketInfo = new BasketInfo(0, "EUR");
+      trans.setBasket(basket);
+      trans.setBasketInfo(basketInfo);
 
-      // You may edit some transaction data and update.
-      newTrans.setMerchantRef("merchant");
-      trans.setTransactionRef("trans1");
-      trans = transactions.update(trans, null);
+
+      // Add products to the basket and update.
+      ProductGroup productGroup = new ProductGroup("group1", "beverages", 1);
+      Product product = new Product(1, null, "123", "5060215249804", "desc1", "2", 5000, 1900, Arrays.asList(productGroup));
+      basket.addProduct(product);
+      basketInfo.setSum(1000000);
+      Transaction result = transactions.update(trans);
+
+      // Add other product again and update.
+      product = new Product(2, null, "456", "1060215249800", "desc2", "1", 1000, 1900, Arrays.asList(productGroup));
+      basket.addProduct(product);
+      basketInfo.setSum(1100000);
+      result = transactions.update(trans);
 
       // demo|auto|cash, demo instructs the server to simulate a different (random) transaction for each invocation of
       // startTransaction, also different formatted receipt lines will be returned.
@@ -245,9 +282,11 @@ public class SmartDemo {
       System.err.println("You are offline.");
     } catch (ClientError err) {
       // Something bad happened due a bug or wrong config. Better close client, show error end exit.
-      System.err.println("Internal error happened, ");
-    } catch (Exception e){
+      System.err.println("Internal error happened.");
+      err.printStackTrace();
+    } catch (Exception e) {
       // Caused direct by this demo code like NPE
+      e.printStackTrace();
     }
 
 
