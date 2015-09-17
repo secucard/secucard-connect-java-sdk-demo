@@ -35,6 +35,11 @@ import java.util.Collections;
 import java.util.Currency;
 import java.util.List;
 
+/**
+ * This example shows the usage of the secucard API transactions from product "smart".
+ * It's not supposed to be something that can be copied and put straight into cash register software, it rather explains
+ * some basic principles when using the API.
+ */
 public class SmartDemo {
 
   public static void main(String[] args) throws Exception {
