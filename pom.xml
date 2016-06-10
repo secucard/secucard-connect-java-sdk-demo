@@ -6,7 +6,7 @@
 
   <groupId>com.secucard.connect</groupId>
   <artifactId>secucard-connect-java-sdk-demo</artifactId>
-  <version>1.0.0-SNAPSHOT</version>
+  <version>2.1.1</version>
   <packaging>jar</packaging>
   <description>Demo for secuard Java SDK</description>
 
@@ -76,13 +76,19 @@
     </plugins>
   </build>
 
-
   <dependencies>
     <dependency>
       <groupId>com.secucard.connect</groupId>
       <artifactId>secucard-connect-java-sdk</artifactId>
-      <version>2.0.0</version>
+      <version>2.1.1</version>
     </dependency>
   </dependencies>
+
+  <repositories>
+      <repository>
+        <id>github-secucard</id>
+        <url>https://raw.githubusercontent.com/secucard/secucard-connect-java-sdk/mvn-repo</url>
+      </repository>
+  </repositories>
 
 </project>
