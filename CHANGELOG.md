@@ -20,5 +20,14 @@ samples. So SDK_MAJOR_VERSION.MAJOR.MINOR.PATCH is the used schema for the versi
 
 ### Removed
 
-## [2.1.0.0] - YYYY-MM-DD
-First release (planed for 2017-04-21).
+## [2.1.0.0] - 2017-04-19
+Demo-Code for Java SDK v2.2.0
+
+### Added
+Demo-Code for Client Payment Methods:
+- Handle payment container
+- Handle customers
+- Handle credit card payments
+- Handle debit payments
+- Handle invoice payments
+- Handle prepaid payments
