@@ -16,6 +16,7 @@ import com.secucard.connect.product.smart.Smart;
 import com.secucard.connect.product.smart.TransactionService;
 import com.secucard.connect.product.smart.model.*;
 
+import java.io.FileInputStream;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Collections;
@@ -30,10 +31,12 @@ public class SmartDemo {
 
     public static void main(String[] args) throws Exception {
 
+        // Use the local configuration instead of the server
+        InputStream path = new FileInputStream("src/config.properties");
         // Get the default configuration from config.properties, but you may also use your own path or stream parameter.
         // Note: You can also add your own custom properties to the configuration, retrieve them by calling
         // cfg.property("your-prop")
-        final SecucardConnect.Configuration cfg = SecucardConnect.Configuration.get();
+        final SecucardConnect.Configuration cfg = SecucardConnect.Configuration.get(path);
 
         // Create your com.secucard.connect.auth.ClientAuthDetails implementation by extending the provided abstract class
         // which stores your obtained OAuth tokens to the local disk in default folder ".smartdemostore" in the current working directory.
@@ -43,9 +46,9 @@ public class SmartDemo {
             @Override
             public OAuthCredentials getCredentials() {
                 return new DeviceCredentials(
-                        "your-client-id",
-                        "your-client-secret",
-                        "your-device-id");
+                        "611c00ec6b2be6c77c2338774f50040b",
+                        "dc1f422dde755f0b1c4ac04e7efbd6c4c78870691fe783266d7d6c89439925eb",
+                        "/vendor/unknown/cashier/dotnettest1");
             }
 
             @Override
