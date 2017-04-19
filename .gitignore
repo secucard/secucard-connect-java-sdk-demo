@@ -24,3 +24,5 @@ hs_err_pid*
 # some custom builds dirs
 /.*/
 /target/
+secucard-connect-java-sdk-demo.properties
+secucard-connect-java-sdk-demo.xml
