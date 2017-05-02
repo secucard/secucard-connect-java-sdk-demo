@@ -46,9 +46,9 @@ public class SmartDemo {
             @Override
             public OAuthCredentials getCredentials() {
                 return new DeviceCredentials(
-                        "611c00ec6b2be6c77c2338774f50040b",
-                        "dc1f422dde755f0b1c4ac04e7efbd6c4c78870691fe783266d7d6c89439925eb",
-                        "/vendor/unknown/cashier/dotnettest1");
+                        "clientId",
+                        "clientSecret",
+                        "deviceId");
             }
 
             @Override
@@ -260,6 +260,39 @@ public class SmartDemo {
             // Status has now changed.
             trans = transactions.get(trans.getId(), null);
             assert (trans.getStatus().equals(Transaction.STATUS_CANCELED));
+
+            // Cancel a payment
+            transactions.cancelPayment("number_to_cancel", new Callback<Transaction>() {
+                @Override
+                public void completed(Transaction result) {
+                }
+
+                @Override
+                public void failed(Throwable cause) {
+                }
+            });
+
+            // Start diagnosis of the terminal
+            transactions.diagnosis(new Callback<Transaction>() {
+                @Override
+                public void completed(Transaction result) {
+                }
+
+                @Override
+                public void failed(Throwable cause) {
+                }
+            });
+
+            // Start end of day report
+            transactions.endOfDay(new Callback<Transaction>() {
+                @Override
+                public void completed(Transaction result) {
+                }
+
+                @Override
+                public void failed(Throwable cause) {
+                }
+            });
 
         } catch (APIError err) {
             // The API server responds with an error, maybe your data are wrong or the API was not used correctly.
