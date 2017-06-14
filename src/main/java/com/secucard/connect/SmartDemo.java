@@ -241,7 +241,7 @@ public class SmartDemo {
 
             // demo|auto|cash, demo instructs the server to simulate a different (random) transaction for each invocation of
             // startTransaction, also different formatted receipt lines will be returned.
-            String type = "demo";
+            String type = TransactionService.TYPE_DEMO;
 
             trans = transactions.start(trans.getId(), type, null);
             assert (trans.getStatus().equals(Transaction.STATUS_OK));
@@ -265,6 +265,7 @@ public class SmartDemo {
             transactions.cancelPayment("number_to_cancel", new Callback<Transaction>() {
                 @Override
                 public void completed(Transaction result) {
+                    System.out.println(result.toString());
                 }
 
                 @Override
