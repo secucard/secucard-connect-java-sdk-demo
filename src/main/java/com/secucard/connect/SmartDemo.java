@@ -228,18 +228,18 @@ public class SmartDemo {
 
             // Add products to the basket and update.
             ProductGroup productGroup = new ProductGroup("group1", "beverages", 1);
-            Product product = new Product(1, null, "123", "5060215249804", "desc1", "2", 5000, 1900, Arrays.asList(productGroup));
+            Product product = new Product(1, null, "123", "5060215249804", "product1", "2", 5000, 1900, Arrays.asList(productGroup));
             basket.addProduct(product);
             basketInfo.setSum(10000);
-            trans = transactions.update(trans);
+            Transaction result = transactions.update(trans);
 
             // Add other product again and update.
-            product = new Product(2, null, "456", "1060215249800", "desc2", "1", 1000, 1900, Arrays.asList(productGroup));
+            product = new Product(2, null, "456", "1060215249800", "product2", "1", 1000, 1900, Arrays.asList(productGroup));
             basket.addProduct(product);
             basketInfo.setSum(11000);
-            trans = transactions.update(trans);
+            result = transactions.update(trans);
 
-            transactions.appendLoyaltyBonusProducts(trans.getId(), new Callback<LoyaltyBonus>() {
+            transactions.appendLoyaltyBonusProducts(result.getId(), new Callback<LoyaltyBonus>() {
                 @Override
                 public void completed(LoyaltyBonus result) {
                     System.out.println(result);
