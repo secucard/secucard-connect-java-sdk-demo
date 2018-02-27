@@ -170,7 +170,6 @@ public class WebViewDemo extends Application {
             URL obj = new URL(url);
             HttpURLConnection con = (HttpURLConnection) obj.openConnection();
             con.setRequestMethod("POST");
-            //con.setRequestProperty("access_token", client.getToken());
             Map<String, Object> params = new LinkedHashMap<>();
             params.put("access_token", client.getToken());
 
