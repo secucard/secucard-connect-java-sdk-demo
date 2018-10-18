@@ -230,13 +230,13 @@ public class SmartDemo {
             ProductGroup productGroup = new ProductGroup("group1", "beverages", 1);
             Product product = new Product(1, null, "123", "5060215249804", "desc1", "2", 5000, 1900, Arrays.asList(productGroup));
             basket.addProduct(product);
-            basketInfo.setSum(1000000);
+            basketInfo.setSum(10000);
             Transaction result = transactions.update(trans);
 
             // Add other product again and update.
             product = new Product(2, null, "456", "1060215249800", "desc2", "1", 1000, 1900, Arrays.asList(productGroup));
             basket.addProduct(product);
-            basketInfo.setSum(1100000);
+            basketInfo.setSum(11000);
             result = transactions.update(trans);
 
             // demo|auto|cash, demo instructs the server to simulate a different (random) transaction for each invocation of
