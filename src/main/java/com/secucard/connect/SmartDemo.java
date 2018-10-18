@@ -12,15 +12,14 @@ import com.secucard.connect.event.Events;
 import com.secucard.connect.product.common.model.MediaResource;
 import com.secucard.connect.product.common.model.QueryParams;
 import com.secucard.connect.product.general.model.Notification;
+import com.secucard.connect.product.loyalty.model.LoyaltyBonus;
 import com.secucard.connect.product.smart.Smart;
 import com.secucard.connect.product.smart.TransactionService;
 import com.secucard.connect.product.smart.model.*;
 
 import java.io.FileInputStream;
 import java.io.InputStream;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 /**
  * This example shows the usage of the secucard API transactions from product "smart".
@@ -46,9 +45,9 @@ public class SmartDemo {
             @Override
             public OAuthCredentials getCredentials() {
                 return new DeviceCredentials(
-                        "clientId",
-                        "clientSecret",
-                        "deviceId");
+                        "611c00ec6b2be6c77c2338774f50040b",
+                        "dc1f422dde755f0b1c4ac04e7efbd6c4c78870691fe783266d7d6c89439925eb",
+                        "/vendor/unknown/cashier/dotnettest1");
             }
 
             @Override
@@ -205,7 +204,9 @@ public class SmartDemo {
             // Select an ident (card) which will be charged for the basket.
             // Usually the value is the id of a scanned card or the id of a Checkin object taken from the global Check-In list.
             Ident ident = new Ident();
-            ident.setValue("my-ident-id");
+            ident.setType(Ident.TYPE_CARD);
+            ident.setId("smi_1");
+            ident.setValue("9276004429945947");
 
             // Now you can proceed in two ways:
             // - creating a "empty" transaction first and adding products afterwards by updating this transaction step by step
@@ -215,9 +216,8 @@ public class SmartDemo {
 
 
             // We show the first way: create a empty product basket and the basket summary and create a new transaction first.
-            Transaction newTrans = new Transaction();
-            newTrans.setIdents(Collections.singletonList(ident));
-            Transaction trans = transactions.create(newTrans);
+            Transaction trans = transactions.create(new Transaction());
+            trans.setIdents(Collections.singletonList(ident));
             assert (trans.getStatus().equals(Transaction.STATUS_CREATED));
 
             Basket basket = new Basket();
@@ -228,20 +228,40 @@ public class SmartDemo {
 
             // Add products to the basket and update.
             ProductGroup productGroup = new ProductGroup("group1", "beverages", 1);
-            Product product = new Product(1, null, "123", "5060215249804", "desc1", "2", 5000, 1900, Arrays.asList(productGroup));
+            Product product = new Product(1, null, "123", "5060215249804", "product1", "2", 5000, 1900, Arrays.asList(productGroup));
             basket.addProduct(product);
             basketInfo.setSum(10000);
             Transaction result = transactions.update(trans);
 
             // Add other product again and update.
-            product = new Product(2, null, "456", "1060215249800", "desc2", "1", 1000, 1900, Arrays.asList(productGroup));
+            product = new Product(2, null, "456", "1060215249800", "product2", "1", 1000, 1900, Arrays.asList(productGroup));
             basket.addProduct(product);
             basketInfo.setSum(11000);
             result = transactions.update(trans);
 
+            transactions.appendLoyaltyBonusProducts(result.getId(), new Callback<LoyaltyBonus>() {
+                @Override
+                public void completed(LoyaltyBonus result) {
+                    System.out.println(result);
+                }
+
+                @Override
+                public void failed(Throwable cause) {
+
+                }
+            });
+
+            // Um die smart Transaktion schlussendlich auszuführen:
+            // trans = transactions.start(trans.getId(), type, null);
+
+
+            /*
+             * Bei Bedarf einkommentieren um Storno einer Payment-Transaktion zu testen
+             *
+
             // demo|auto|cash, demo instructs the server to simulate a different (random) transaction for each invocation of
             // startTransaction, also different formatted receipt lines will be returned.
-            String type = TransactionService.TYPE_DEMO;
+            String type = TransactionService.TYPE_LOYALTY;
 
             trans = transactions.start(trans.getId(), type, null);
             assert (trans.getStatus().equals(Transaction.STATUS_OK));
@@ -272,6 +292,8 @@ public class SmartDemo {
                 public void failed(Throwable cause) {
                 }
             });
+
+            */
 
             // Start diagnosis of the terminal
             transactions.diagnosis(new Callback<Transaction>() {
