@@ -4,29 +4,37 @@ import com.secucard.connect.auth.AbstractClientAuthDetails;
 import com.secucard.connect.auth.exception.AuthDeniedException;
 import com.secucard.connect.auth.model.ClientCredentials;
 import com.secucard.connect.auth.model.DeviceAuthCode;
-import com.secucard.connect.auth.model.DeviceCredentials;
 import com.secucard.connect.auth.model.OAuthCredentials;
-import com.secucard.connect.client.*;
+import com.secucard.connect.auth.model.RefreshCredentials;
+import com.secucard.connect.client.APIError;
+import com.secucard.connect.client.AuthError;
+import com.secucard.connect.client.Callback;
+import com.secucard.connect.client.ClientError;
+import com.secucard.connect.client.NetworkError;
 import com.secucard.connect.event.EventListener;
 import com.secucard.connect.event.Events;
-import com.secucard.connect.product.common.model.MediaResource;
-import com.secucard.connect.product.common.model.QueryParams;
 import com.secucard.connect.product.general.model.Notification;
-import com.secucard.connect.product.loyalty.model.LoyaltyBonus;
 import com.secucard.connect.product.smart.Smart;
 import com.secucard.connect.product.smart.TransactionService;
-import com.secucard.connect.product.smart.model.*;
-
+import com.secucard.connect.product.smart.model.Basket;
+import com.secucard.connect.product.smart.model.BasketInfo;
+import com.secucard.connect.product.smart.model.Ident;
+import com.secucard.connect.product.smart.model.Product;
+import com.secucard.connect.product.smart.model.ReceiptLine;
+import com.secucard.connect.product.smart.model.Transaction;
 import java.io.FileInputStream;
 import java.io.InputStream;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This example shows the usage of the secucard API transactions from product "smart".
  * It's not supposed to be something that can be copied and put straight into cash register software, it rather explains
  * some basic principles when using the API.
  */
-public class SmartDemo {
+public class SmartLoyaltyDemo {
 
     public static void main(String[] args) throws Exception {
 
@@ -44,10 +52,11 @@ public class SmartDemo {
         AbstractClientAuthDetails authDetails = new AbstractClientAuthDetails(".smartdemostore") {
             @Override
             public OAuthCredentials getCredentials() {
-                return new DeviceCredentials(
-                        "611c00ec6b2be6c77c2338774f50040b",
-                        "dc1f422dde755f0b1c4ac04e7efbd6c4c78870691fe783266d7d6c89439925eb",
-                        "/vendor/unknown/cashier/dotnettest1");
+                return new RefreshCredentials(
+                    "611c00ec6b2be6c77c2338774f50040b",
+                    "dc1f422dde755f0b1c4ac04e7efbd6c4c78870691fe783266d7d6c89439925eb",
+                    "..."
+                );
             }
 
             @Override
@@ -74,12 +83,12 @@ public class SmartDemo {
                     System.out.println("Please visit: " + code.getVerificationUrl() + " and enter code: " + code.getUserCode());
                 }
 
-                if ("AUTH_PENDING".equals(event)) {
+                if (com.secucard.connect.auth.Events.EVENT_AUTH_PENDING.equals(event)) {
                     // Present to the user - this event comes up periodically as long the authentication is not performed.
                     System.out.println("Please wait, authentication is pending.");
                 }
 
-                if ("AUTH_OK".equals(event)) {
+                if (com.secucard.connect.auth.Events.EVENT_AUTH_OK.equals(event)) {
                     // Present to the user - user has device codes codes typed in and the auth was successful.
                     System.out.println("Gratulations, you are now authenticated!");
                 }
@@ -94,17 +103,6 @@ public class SmartDemo {
             }
         });
 
-        // Set an optional global exception handler - all exceptions thrown by service methods end up here.
-        // If not set each method throws as usual, its up to the developer to catch accordingly.
-        // If callback are used all exceptions go to the failed method.
-    /*
-    client.setServiceExceptionHandler(new ExceptionHandler() {
-      @Override
-      public void handle(Throwable exception) {
-      }
-    });
-    */
-
         // This will clear an existing token and will trigger an new authentication process when calling client.open()!
         // authDetails.clear();
 
@@ -114,6 +112,7 @@ public class SmartDemo {
         do {
             try {
                 client.open();
+                System.out.println("getToken: " + client.getToken());
                 break; // Success!
             } catch (AuthDeniedException e) {
                 // Resolvable auth error like invalid credentials were given, let try again.
@@ -138,38 +137,6 @@ public class SmartDemo {
 
         // Now the API client is ready!
 
-        // Check-In ------------------------------------------------------------------------------------------------
-
-        // Set up callback to get notified when "Check-In" events happen (customer shows up in store).
-        // We just print here for demo purposes, you would probably store in global list or so in real world.
-        // You may trigger such an event by using the secucard app.
-        client.smart.checkins.onCheckinsChanged(new Callback<List<Checkin>>() {
-            @Override
-            public void completed(List<Checkin> result) {
-                for (Checkin checkin : result) {
-                    System.out.println("Checked in: " + checkin.getCustomerName());
-                    // Keep the checkin object id for setting as ident value.
-                    // At this point all pictures are also downloaded, access binary content to create a image via:
-                    MediaResource picture = checkin.getPictureObject();
-                    if (picture != null) {
-                        InputStream inputStream = picture.getInputStream();
-                        // further stream processing ...
-                    } else {
-                        // You may additionally check if there was an error which caused the picture to be null and handle somehow.
-                        Exception error = checkin.getError();
-                    }
-                }
-            }
-
-            @Override
-            public void failed(Throwable cause) {
-                // Something bad happened, you would probably want to show an error dialog and clear the checkin list.
-                System.err.println("Error processing check-in:");
-                cause.printStackTrace();
-            }
-        });
-
-
         // Smart Transaction  ----------------------------------------------------------------------------------------
         // A transaction purpose is to charge a basket of products (of a shop etc.) against an ident.
         // The ident is the reference to a medium of exchange belonging to a customer known to the secucard system.
@@ -193,80 +160,34 @@ public class SmartDemo {
         });
 
         try {
-
-            // You may obtain a global list of allowed "idents templates" to cross check if current customers ident
-            // is valid at all, this "manual" pre-validation avoids errors when actually submitting transactions later.
-            List<Ident> allowedIdents = client.smart.idents.getSimpleList(new QueryParams());
-            if (allowedIdents == null) {
-                throw new RuntimeException("No idents found."); // Should not happen.
-            }
-
-            // Select an ident (card) which will be charged for the basket.
-            // Usually the value is the id of a scanned card or the id of a Checkin object taken from the global Check-In list.
+            // Add some secucard
             Ident ident = new Ident();
             ident.setType(Ident.TYPE_CARD);
             ident.setId("smi_1");
             ident.setValue("927600...");
 
-            // Now you can proceed in two ways:
-            // - creating a "empty" transaction first and adding products afterwards by updating this transaction step by step
-            // - adding products to the basket first and creating a new transactions afterwards with the complete basket.
-            // The second approach may be faster but you get product errors late and all at once while the first approach shows
-            // possible errors immediately after each update.
-
-
-            // We show the first way: create a empty product basket and the basket summary and create a new transaction first.
-            Transaction trans = transactions.create(new Transaction());
+            // Create a transaction to discharge the secucard
+            Transaction trans = new Transaction();
             trans.setIdents(Collections.singletonList(ident));
-            assert (trans.getStatus().equals(Transaction.STATUS_CREATED));
 
             Basket basket = new Basket();
             BasketInfo basketInfo = new BasketInfo(0, "EUR");
             trans.setBasket(basket);
             trans.setBasketInfo(basketInfo);
 
-
-            // Add products to the basket and update.
-            ProductGroup productGroup = new ProductGroup("group1", "beverages", 1);
-            Product product = new Product(1, null, "123", "5060215249804", "product1", "2", 5000, 1900, Arrays.asList(productGroup));
+            Product product = new Product(1, null, "123", "5060215249804", "product1", "1", 5, 0, null);
             basket.addProduct(product);
-            basketInfo.setSum(10000);
-            Transaction result = transactions.update(trans);
+            basketInfo.setSum(5);
 
-            // Add other product again and update.
-            product = new Product(2, null, "456", "1060215249800", "product2", "1", 1000, 1900, Arrays.asList(productGroup));
-            basket.addProduct(product);
-            basketInfo.setSum(11000);
-            result = transactions.update(trans);
+            trans = transactions.create(trans);
+            System.out.println("Trans.Id: " + trans.getId());
+            assert (trans.getStatus().equals(Transaction.STATUS_CREATED));
+            System.out.println("Trans.result (1): " + trans);
 
-            transactions.appendLoyaltyBonusProducts(result.getId(), new Callback<LoyaltyBonus>() {
-                @Override
-                public void completed(LoyaltyBonus result) {
-                    System.out.println(result);
-                }
-
-                @Override
-                public void failed(Throwable cause) {
-
-                }
-            });
-
-            // Um die smart Transaktion schlussendlich auszuführen:
-            // trans = transactions.start(trans.getId(), type, null);
-
-
-            /*
-             * Bei Bedarf einkommentieren um Storno einer Payment-Transaktion zu testen
-             *
-
-            // demo|auto|cash, demo instructs the server to simulate a different (random) transaction for each invocation of
-            // startTransaction, also different formatted receipt lines will be returned.
-            String type = TransactionService.TYPE_LOYALTY;
-
-            trans = transactions.start(trans.getId(), type, null);
+            // Execute the discharge
+            trans = transactions.start(trans.getId(), TransactionService.TYPE_LOYALTY, null);
             assert (trans.getStatus().equals(Transaction.STATUS_OK));
-
-            System.out.println("Transaction started!");
+            System.out.println("Trans.result (2): " + trans);
 
             // "Print" receipt
             List<ReceiptLine> receiptLines = trans.getReceiptLines();
@@ -274,15 +195,54 @@ public class SmartDemo {
                 System.out.println("Receipt Line: " + line.getLineType() + ", " + line.getValue());
             }
 
-            // Cancel the transaction.
-            boolean ok = transactions.cancel(trans.getId(), null);
+            // Cancel the transaction, without using a callback
+            /*
+            Boolean ok = transactions.cancel(trans.getId(), null);
+            assert(ok);
+            */
 
-            // Status has now changed.
-            trans = transactions.get(trans.getId(), null);
+            // Cancel the transaction, SDK version <= 2.7.1
+            /*
+            Boolean ok = transactions.cancel(trans.getId(), new Callback<Boolean>() {
+                @Override
+                public void completed(Boolean result) {
+                    System.out.println("Cancel successful: " + result.toString());
+                    assert(result);
+                }
+
+                @Override
+                public void failed(Throwable cause) {
+                    System.err.println("Error processing cancel request!");
+                    cause.printStackTrace();
+                }
+            });
+            assert(ok);
+            */
+
+            // Cancel the transaction, SDK version >= 2.8.0
+            trans = transactions.cancel(trans.getId(), new Callback<Transaction>() {
+                @Override
+                public void completed(Transaction result) {
+                    System.out.println("Cancel successful: " + result.getStatus());
+                    assert (result.getStatus().equals(Transaction.STATUS_CANCELED));
+                    // "Print" receipt
+                    List<ReceiptLine> receiptLines = result.getReceiptLines();
+                    for (ReceiptLine line : receiptLines) {
+                        System.out.println("Receipt Line: " + line.getLineType() + ", " + line.getValue());
+                    }
+                }
+
+                @Override
+                public void failed(Throwable cause) {
+                    System.err.println("Error processing cancel request!");
+                    cause.printStackTrace();
+                }
+            });
             assert (trans.getStatus().equals(Transaction.STATUS_CANCELED));
 
+            /*
             // Cancel a payment
-            transactions.cancelPayment("number_to_cancel", new Callback<Transaction>() {
+            transactions.cancelPayment("receipt_number_to_cancel", new Callback<Transaction>() {
                 @Override
                 public void completed(Transaction result) {
                     System.out.println(result.toString());
@@ -292,8 +252,6 @@ public class SmartDemo {
                 public void failed(Throwable cause) {
                 }
             });
-
-            */
 
             // Start diagnosis of the terminal
             transactions.diagnosis(new Callback<Transaction>() {
@@ -316,7 +274,7 @@ public class SmartDemo {
                 public void failed(Throwable cause) {
                 }
             });
-
+*/
         } catch (APIError err) {
             // The API server responds with an error, maybe your data are wrong or the API was not used correctly.
             // Depending on the error text its recoverable by editing the data an trying again.
@@ -338,7 +296,6 @@ public class SmartDemo {
             // Caused direct by this demo code like NPE
             e.printStackTrace();
         }
-
 
         client.close();
     }
