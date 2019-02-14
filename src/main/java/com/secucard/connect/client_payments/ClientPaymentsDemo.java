@@ -48,6 +48,14 @@ public class ClientPaymentsDemo {
     // Get a API client instance.
     SecucardConnect client = SecucardConnect.create(cfg);
 
+    /*
+     * Clone Contracts:
+     *
+     * Contracts clContracts = new Contracts(client);
+     * clContracts.getContractsList();
+     * clContracts.cloneContract();
+     */
+
     // *** CUSTOMERS ***
     Customers clCustomers = new Customers(client);
     // Get a list of Customers
