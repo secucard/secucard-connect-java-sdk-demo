@@ -10,6 +10,7 @@ import com.secucard.connect.product.payment.model.Customer;
 import com.secucard.connect.product.payment.model.SecupayCreditcard;
 import com.secucard.connect.product.payment.model.SecupayDebit;
 import com.secucard.connect.product.payment.model.SecupayInvoice;
+import com.secucard.connect.product.payment.model.SecupayPayout;
 import com.secucard.connect.product.payment.model.SecupayPrepay;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -71,6 +72,11 @@ public class ClientPaymentsDemo {
     ObjectList<Container> containers = clContainers.getContainersList();
     // Create a new payment container (only needed for secupay debit, not for prepay)
     Container container = clContainers.createContainer();
+
+    // *** PAYOUT ***
+    SecupayPayoutSample clSecupayPayout = new SecupayPayoutSample(client, customer, container);
+    // Create a new payment transaction with secupay debit
+    SecupayPayout secupayPayout = clSecupayPayout.createSecupayPayout();
 
     // *** DEBIT ***
     SecupayDebits clSecupayDebits = new SecupayDebits(client, customer, container);

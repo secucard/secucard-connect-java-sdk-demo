@@ -81,8 +81,6 @@ public class Customers {
     contact.setPhone("0049-123456789");
     contact.setAddress(address);
 
-    customer.setObject("payment.customers");
-    customer.setId("PCU_WP69JQU3A2M7DSKK875XU24RSYKVAZ");
     customer.setContact(contact);
     try {
       customer = service.create(customer);

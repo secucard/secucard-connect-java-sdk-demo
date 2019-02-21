@@ -25,9 +25,6 @@ public class SecupayPrepays {
     SecupayPrepay secupayPrepay = new SecupayPrepay();
     SecupayPrepaysService service = client.payment.secupayprepays;
 
-    System.out.println(
-        "SecupayPrepays number found: " + service.getList(new QueryParams(), null).getCount());
-
     secupayPrepay.setAmount(100); // Amount in cents (or in the smallest unit of the given currency)
     secupayPrepay.setCurrency(Currency.getInstance("EUR")); // The ISO-4217 code of the currency
     secupayPrepay.setPurpose("Your purpose from TestShopName");

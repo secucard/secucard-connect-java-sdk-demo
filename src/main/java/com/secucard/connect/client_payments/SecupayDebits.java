@@ -30,9 +30,6 @@ public class SecupayDebits {
     SecupayDebit secupayDebit = new SecupayDebit();
     SecupayDebitsService service = client.payment.secupaydebits;
 
-    System.out.println(
-        "SecupayDebits number found: " + service.getList(new QueryParams(), null).getCount());
-
     secupayDebit.setAmount(245); // Amount in cents (or in the smallest unit of the given currency)
     secupayDebit.setCurrency(Currency.getInstance("EUR")); // The ISO-4217 code of the currency
     secupayDebit.setPurpose("Your purpose from TestShopName");
