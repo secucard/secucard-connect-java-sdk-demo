@@ -1,6 +1,7 @@
 package com.secucard.connect;
 
 import com.secucard.connect.auth.AbstractClientAuthDetails;
+import com.secucard.connect.auth.CancelCallback;
 import com.secucard.connect.auth.exception.AuthDeniedException;
 import com.secucard.connect.auth.model.ClientCredentials;
 import com.secucard.connect.auth.model.DeviceAuthCode;
@@ -17,8 +18,11 @@ import com.secucard.connect.product.smart.Smart;
 import com.secucard.connect.product.smart.TransactionService;
 import com.secucard.connect.product.smart.model.*;
 
+import java.io.BufferedReader;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.*;
 
 /**
@@ -47,7 +51,7 @@ public class SmartDemo {
                 return new DeviceCredentials(
                         "611c00ec6b2be6c77c2338774f50040b",
                         "dc1f422dde755f0b1c4ac04e7efbd6c4c78870691fe783266d7d6c89439925eb",
-                        "/vendor/unknown/cashier/dotnettest1");
+                        "/vendor/pios/branch/123/cr/123/customer/321/dealer/321");
             }
 
             @Override
@@ -58,6 +62,13 @@ public class SmartDemo {
 
         cfg.clientAuthDetails = authDetails;
 
+        cfg.autCancelCallback = new CancelCallback() {
+            @Override
+            public boolean cancel() {
+                // To stop the process return TRUE.
+                return false;
+            }
+        };
 
         // Get a API client instance.
         final SecucardConnect client = SecucardConnect.create(cfg);
@@ -113,7 +124,7 @@ public class SmartDemo {
         // Call client.cancelAuth(); to abort such a auth process (from another thread of course).
         do {
             try {
-                client.open();
+//                client.open();
                 break; // Success!
             } catch (AuthDeniedException e) {
                 // Resolvable auth error like invalid credentials were given, let try again.
@@ -170,6 +181,8 @@ public class SmartDemo {
         });
 
 
+//        System.out.println( client.getToken() );
+
         // Smart Transaction  ----------------------------------------------------------------------------------------
         // A transaction purpose is to charge a basket of products (of a shop etc.) against an ident.
         // The ident is the reference to a medium of exchange belonging to a customer known to the secucard system.
@@ -196,17 +209,19 @@ public class SmartDemo {
 
             // You may obtain a global list of allowed "idents templates" to cross check if current customers ident
             // is valid at all, this "manual" pre-validation avoids errors when actually submitting transactions later.
-            List<Ident> allowedIdents = client.smart.idents.getSimpleList(new QueryParams());
-            if (allowedIdents == null) {
-                throw new RuntimeException("No idents found."); // Should not happen.
-            }
+//            List<Ident> allowedIdents = client.smart.idents.getSimpleList(new QueryParams());
+//            if (allowedIdents == null) {
+//                throw new RuntimeException("No idents found."); // Should not happen.
+//            }
 
             // Select an ident (card) which will be charged for the basket.
             // Usually the value is the id of a scanned card or the id of a Checkin object taken from the global Check-In list.
             Ident ident = new Ident();
-            ident.setType(Ident.TYPE_CARD);
-            ident.setId("smi_1");
-            ident.setValue("927600...");
+//            ident.setType(Ident.TYPE_CARD);
+//            ident.setId("smi_1");
+//            ident.setValue("927600...");
+
+//            ident = client.smart.idents.readIdent("", null);
 
             // Now you can proceed in two ways:
             // - creating a "empty" transaction first and adding products afterwards by updating this transaction step by step
@@ -219,6 +234,7 @@ public class SmartDemo {
             Transaction trans = transactions.create(new Transaction());
             trans.setIdents(Collections.singletonList(ident));
             assert (trans.getStatus().equals(Transaction.STATUS_CREATED));
+            System.out.println(trans);
 
             Basket basket = new Basket();
             BasketInfo basketInfo = new BasketInfo(0, "EUR");
@@ -238,6 +254,7 @@ public class SmartDemo {
             basket.addProduct(product);
             basketInfo.setSum(11000);
             result = transactions.update(trans);
+            System.out.println(result);
 
             transactions.appendLoyaltyBonusProducts(result.getId(), new Callback<LoyaltyBonus>() {
                 @Override
@@ -250,6 +267,11 @@ public class SmartDemo {
 
                 }
             });
+
+
+            // Status has now changed.
+            trans = transactions.get(trans.getId(), null);
+            assert (trans.getStatus().equals(Transaction.STATUS_CANCELED));
 
             // Um die smart Transaktion schlussendlich auszuführen:
             // trans = transactions.start(trans.getId(), type, null);

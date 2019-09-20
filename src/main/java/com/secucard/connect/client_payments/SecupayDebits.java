@@ -4,10 +4,12 @@ package com.secucard.connect.client_payments;
 import com.secucard.connect.SecucardConnect;
 import com.secucard.connect.product.common.model.QueryParams;
 import com.secucard.connect.product.payment.SecupayDebitsService;
+import com.secucard.connect.product.payment.SecupayPrepaysService;
 import com.secucard.connect.product.payment.model.Basket;
 import com.secucard.connect.product.payment.model.Container;
 import com.secucard.connect.product.payment.model.Customer;
 import com.secucard.connect.product.payment.model.SecupayDebit;
+import com.secucard.connect.product.payment.model.SecupayPrepay;
 import java.util.Currency;
 
 //============================================================================
@@ -22,6 +24,26 @@ public class SecupayDebits {
     client = client_;
     customer = customer_;
     container = container_;
+  }
+
+  public void cancelSecupayDebit(String payment_id) {
+    System.out.println("-> cancel SecupayDebit");
+
+    boolean bResult = false;
+    SecupayDebitsService service = client.payment.secupaydebits;
+    try {
+      bResult = service.cancel(payment_id);
+    } catch (Exception e) {
+      e.printStackTrace();
+    } finally {
+      client.close();
+    }
+
+    if (bResult) {
+      System.out.println("Canceled SecupayDebit transaction with id: " + payment_id);
+    } else {
+      System.out.println("SecupayDebit cancellation failed with id: " + payment_id);
+    }
   }
 
   //============================================================================
