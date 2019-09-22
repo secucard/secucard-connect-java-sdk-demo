@@ -231,7 +231,14 @@ public class SmartDemo {
 
 
             // We show the first way: create a empty product basket and the basket summary and create a new transaction first.
+            transactions.start("STX_...", TransactionService.TYPE_CASH, null);
             Transaction trans = transactions.create(new Transaction());
+
+            if (trans == null) {
+                client.sendOfflineMessages(null, ".scc-offline-failed");
+                return;
+            }
+
             trans.setIdents(Collections.singletonList(ident));
             assert (trans.getStatus().equals(Transaction.STATUS_CREATED));
             System.out.println(trans);
