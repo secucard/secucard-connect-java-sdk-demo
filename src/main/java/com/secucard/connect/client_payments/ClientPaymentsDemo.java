@@ -74,9 +74,9 @@ public class ClientPaymentsDemo {
     Container container = clContainers.createContainer();
 
     // *** PAYOUT ***
-    SecupayPayoutSample clSecupayPayout = new SecupayPayoutSample(client, customer, container);
+    // SecupayPayoutSample clSecupayPayout = new SecupayPayoutSample(client, customer, container);
     // Create a new payment transaction with secupay debit
-    SecupayPayout secupayPayout = clSecupayPayout.createSecupayPayout();
+    // SecupayPayout secupayPayout = clSecupayPayout.createSecupayPayout();
 
     // *** DEBIT ***
     SecupayDebits clSecupayDebits = new SecupayDebits(client, customer, container);

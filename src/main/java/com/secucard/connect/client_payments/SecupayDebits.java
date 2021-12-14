@@ -54,9 +54,9 @@ public class SecupayDebits {
     article.setItemType(Basket.ITEM_TYPE_ARTICLE);
     article.setName("Testname 1");
     article.setPriceOne(25);
-    article.setQuantity(2);
+    article.setQuantity(4);
     article.setTax(19);
-    article.setTotal(50);
+    article.setTotal(100);
     basket[0] = article;
 
     // Add the shipping costs
