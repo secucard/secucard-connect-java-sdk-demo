@@ -1,16 +1,14 @@
 package com.secucard.connect;
 
 import com.secucard.connect.auth.AbstractClientAuthDetails;
-import com.secucard.connect.auth.model.ClientCredentials;
-import com.secucard.connect.auth.model.DeviceAuthCode;
-import com.secucard.connect.auth.model.DeviceCredentials;
-import com.secucard.connect.auth.model.OAuthCredentials;
-import com.secucard.connect.client.Callback;
+import com.secucard.connect.auth.model.*;
+import com.secucard.connect.client.*;
 import com.secucard.connect.event.EventListener;
 import com.secucard.connect.product.smart.CheckinService;
 import com.secucard.connect.product.smart.IdentService;
 import com.secucard.connect.product.smart.Smart;
-import com.secucard.connect.product.smart.model.ComponentInstruction;
+import com.secucard.connect.product.smart.TransactionService;
+import com.secucard.connect.product.smart.model.*;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
@@ -24,6 +22,7 @@ import javafx.stage.Stage;
 
 import java.io.*;
 import java.net.*;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -74,66 +73,152 @@ public class WebViewDemo extends Application {
          * A STOMP message for the user-selection or ident-link arrived
          */
         identService.onChanged(new Callback<List<ComponentInstruction>>() {
-           @Override
-           public void completed(List<ComponentInstruction> results) {
-               for (ComponentInstruction result : results) {
-                   switch (result.target) {
-                       case ComponentInstruction.COMPONENT_TARGET_USER_SELECTION: {
-                           switch (result.action) {
-                               case ComponentInstruction.COMPONENT_ACTION_OPEN:
-                                   Platform.runLater(doUIStuff(result, userSelectionScreen, null));
-                                   break;
-                               case ComponentInstruction.COMPONENT_ACTION_UPDATE:
-                                   if (!userSelectionScreen.getEngine().getTitle().equals("")) {
-                                       Platform.runLater(doUIStuff(result, userSelectionScreen, null));
-                                   }
-                                   break;
-                               case ComponentInstruction.COMPONENT_ACTION_CLOSE:
-                                   Platform.runLater(doUIStuff(result, userSelectionScreen, "about:blank"));
-                                   break;
-                           }
-                       }
-                       break;
-                       case ComponentInstruction.COMPONENT_TARGET_IDENT_LINK: {
-                           switch (result.action) {
-                               case ComponentInstruction.COMPONENT_ACTION_OPEN:
-                               case ComponentInstruction.COMPONENT_ACTION_UPDATE:
-                                   Platform.runLater(doUIStuff(result, identLink, null));
-                                   break;
-                               case ComponentInstruction.COMPONENT_ACTION_CLOSE:
-                                   identLink.getEngine().load("about:blank");
-                                   break;
-                           }
-                       }
-                       break;
-                   }
-               }
-           }
+            @Override
+            public void completed(List<ComponentInstruction> results) {
+                for (ComponentInstruction result : results) {
+                    switch (result.target) {
+                        case ComponentInstruction.COMPONENT_TARGET_USER_SELECTION: {
+                            switch (result.action) {
+                                case ComponentInstruction.COMPONENT_ACTION_OPEN:
+                                    Platform.runLater(doUIStuff(result, userSelectionScreen, null));
+                                    break;
+                                case ComponentInstruction.COMPONENT_ACTION_UPDATE:
+                                    if (!userSelectionScreen.getEngine().getTitle().equals("")) {
+                                        Platform.runLater(doUIStuff(result, userSelectionScreen, null));
+                                    }
+                                    break;
+                                case ComponentInstruction.COMPONENT_ACTION_CLOSE:
+                                    Platform.runLater(doUIStuff(result, userSelectionScreen, "about:blank"));
+                                    break;
+                            }
+                        }
+                        break;
+                        case ComponentInstruction.COMPONENT_TARGET_IDENT_LINK: {
+                            switch (result.action) {
+                                case ComponentInstruction.COMPONENT_ACTION_OPEN:
+                                case ComponentInstruction.COMPONENT_ACTION_UPDATE:
+                                    Platform.runLater(doUIStuff(result, identLink, null));
+                                    break;
+                                case ComponentInstruction.COMPONENT_ACTION_CLOSE:
+                                    identLink.getEngine().load("about:blank");
+                                    break;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
 
-           @Override
-           public void failed(Throwable cause) {
-               System.out.println(cause.getMessage());
-           }
+            @Override
+            public void failed(Throwable cause) {
+                System.out.println(cause.getMessage());
+            }
         });
 
         Button buttonURL = new Button("Start");
-        buttonURL.setOnAction(new EventHandler<ActionEvent>(){
+        buttonURL.setOnAction(new EventHandler<ActionEvent>() {
             @Override
             public void handle(ActionEvent event) {
                 checkinService.initiateComponentCheckinButton();
             }
         });
 
+        Button buttonSTX = new Button("create and start STX");
+        buttonSTX.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent event) {
+                try {
+                    TransactionService transactions = client.service(Smart.Transactions);
+
+                    // Add some secucard
+                    Ident ident = new Ident();
+                    ident.setType(Ident.TYPE_CARD);
+                    ident.setId("smi_1");
+                    ident.setValue("9276004429132943");
+
+                    // Create a transaction to discharge the secucard
+                    Transaction trans = new Transaction();
+                    trans.setIdents(Collections.singletonList(ident));
+
+                    Basket basket = new Basket();
+                    BasketInfo basketInfo = new BasketInfo(0, "EUR");
+                    trans.setBasket(basket);
+                    trans.setBasketInfo(basketInfo);
+
+                    // EAN 4260447149502 will charge a card
+                    Product product = new Product(1, null, "123", "4260447149502", "product1", "1", 5, 0, null);
+                    basket.addProduct(product);
+                    basketInfo.setSum(5);
+
+                    transactions.create(trans, new Callback<Transaction>() {
+                        @Override
+                        public void completed(Transaction trans2) {
+                            System.out.println("Trans.Id: " + trans2.getId());
+                            assert (trans2.getStatus().equals(Transaction.STATUS_CREATED));
+                            System.out.println("Trans.result (1): " + trans2);
+
+                            // Execute the charge
+                            transactions.start(trans2.getId(), TransactionService.TYPE_CASH, new Callback<Transaction>() {
+                                @Override
+                                public void completed(Transaction trans3) {
+                                    assert (trans3.getStatus().equals(Transaction.STATUS_OK));
+                                    System.out.println("Trans.result (2): " + trans3);
+
+                                    // "Print" receipt
+                                    List<ReceiptLine> receiptLines = trans3.getReceiptLines();
+                                    for (ReceiptLine line : receiptLines) {
+                                        System.out.println("Receipt Line: " + line.getLineType() + ", " + line.getValue());
+                                    }
+                                }
+
+                                @Override
+                                public void failed(Throwable cause) {
+                                    System.err.println("Error processing start STX!");
+                                    cause.printStackTrace();
+                                }
+                            });
+                        }
+
+                        @Override
+                        public void failed(Throwable cause) {
+                            System.err.println("Error processing create STX!");
+                            cause.printStackTrace();
+                        }
+                    });
+                } catch (APIError err) {
+                    // The API server responds with an error, maybe your data are wrong or the API was not used correctly.
+                    // Depending on the error text it's recoverable by editing the data and trying again.
+                    System.err.println("API Error:");
+                    err.printStackTrace();
+                } catch (AuthError err) {
+                    // Heavy problem with the token or with token management (refresh), maybe due deactivated account.
+                    // Usually not recoverable. You may close client, clear token and open again (and thus authenticate new).
+                    System.err.println("Auth Error:");
+                    err.printStackTrace();
+                } catch (NetworkError err) {
+                    // No need to close, try again next time if online ...
+                    System.err.println("You are offline.");
+                } catch (ClientError err) {
+                    // Something bad happened due a bug or wrong config. Better close client, show error end exit.
+                    System.err.println("Internal error happened.");
+                    err.printStackTrace();
+                } catch (Exception e) {
+                    // Caused direct by this demo code like NPE
+                    e.printStackTrace();
+                }
+            }
+        });
+
         VBox root = new VBox();
         root.setPadding(new Insets(5));
         root.setSpacing(5);
-        root.getChildren().addAll(buttonURL, smartCheckinButton, userSelectionScreen, identLink);
+        root.getChildren().addAll(buttonURL, buttonSTX, smartCheckinButton, userSelectionScreen, identLink);
 
         Scene scene = new Scene(root);
         stage.setTitle("SMART-Kasse Implementierungsdemo");
         stage.setScene(scene);
-        stage.setWidth(950);
-        stage.setHeight(900);
+        stage.setWidth(600);
+        stage.setHeight(600);
 
         stage.show();
     }
@@ -215,9 +300,10 @@ public class WebViewDemo extends Application {
             @Override
             public OAuthCredentials getCredentials() {
                 return new DeviceCredentials(
-                        "611c00ec6b2be6c77c2338774f50040b",
-                        "dc1f422dde755f0b1c4ac04e7efbd6c4c78870691fe783266d7d6c89439925eb",
-                        "/vendor/unknown/cashier/dotnettest1");
+                        "...",  // TODO add your custom credentials
+                        "...",
+                        "..."
+                );
             }
 
             @Override
@@ -247,7 +333,7 @@ public class WebViewDemo extends Application {
                 }
 
                 if ("AUTH_OK".equals(event)) {
-                    // Present to the user - user has device codes codes typed in and the auth was successful.
+                    // Present to the user - user has device codes typed in and the auth was successful.
                     System.out.println("Gratulations, you are now authenticated!");
                 }
             }
